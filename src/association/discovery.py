@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -62,9 +63,31 @@ def _get_openai_client():
     )
 
 
+def _format_layered_explanation(raw: str) -> str:
+    """将 LLM 输出的「核心」「说明」格式化为 Markdown 分层结构。"""
+    raw = raw.strip()
+    if not raw or "（解释生成失败）" in raw:
+        return raw
+
+    # 尝试解析「核心：...说明：...」格式
+    core_match = re.search(r"核心[：:]\s*(.+?)(?=说明[：:]|$)", raw, re.DOTALL)
+    desc_match = re.search(r"说明[：:]\s*(.+?)$", raw, re.DOTALL)
+
+    if core_match and desc_match:
+        核心 = core_match.group(1).strip()
+        说明 = desc_match.group(1).strip()
+        return f"**核心**：{核心}\n\n**说明**：{说明}"
+    if core_match:
+        核心 = core_match.group(1).strip()
+        return f"**核心**：{核心}\n\n**说明**：{raw[core_match.end():].strip()}" if core_match.end() < len(raw) else f"**核心**：{核心}"
+
+    # 未匹配到分层格式，原样返回
+    return raw
+
+
 def _llm_explain_paragraph(
     prompt: str,
-    max_tokens: int = 400,
+    max_tokens: int = 500,
 ) -> str:
     """调用 LLM 生成解释段落，返回纯文本。"""
     client = _get_openai_client()
@@ -100,16 +123,22 @@ def _explain_hexagram_statement(
     if not use_llm:
         return "（请使用 LLM 模式生成完整解释）"
 
-    prompt = f"""你是一位易经专家。请根据上卦{上卦}与下卦{下卦}的映射，写一段解释性话语，说明二者如何组合以解释卦辞。
+    prompt = f"""你是一位易经专家。请根据上卦{上卦}与下卦{下卦}的映射，写一段解释，说明二者如何组合以解释卦辞。
 
 上卦{上卦}的映射：{上卦摘要}
 下卦{下卦}的映射：{下卦摘要}
 
 卦辞：{text}
 
-要求：直接输出 2-5 句解释段落，说明上卦与下卦的取象如何结合、共同解释卦辞的含义。不要输出「根据」「综上所述」等套话，直接写解释内容。"""
+要求：
+1. 采用分层结构，严格按以下格式输出（保留「核心」和「说明」两行标题）：
+核心：（用 1-2 句概括卦辞的核心含义）
+说明：（展开说明上卦与下卦的取象如何结合、共同解释卦辞）
+2. 语言通俗易懂，避免文言和生僻用语
+3. 不要输出「根据」「综上所述」等套话"""
 
-    return _llm_explain_paragraph(prompt) or "（解释生成失败）"
+    raw = _llm_explain_paragraph(prompt) or "（解释生成失败）"
+    return _format_layered_explanation(raw)
 
 
 def _explain_yao_statement(
@@ -142,7 +171,7 @@ def _explain_yao_statement(
     if not use_llm:
         return "（请使用 LLM 模式生成完整解释）"
 
-    prompt = f"""你是一位易经专家。请根据本爻所属{本卦}卦的映射、对卦{对卦}的映射、以及爻位象，写一段解释性话语，说明如何组合以解释爻辞。
+    prompt = f"""你是一位易经专家。请根据本爻所属{本卦}卦的映射、对卦{对卦}的映射、以及爻位象，写一段解释，说明如何组合以解释爻辞。
 
 本爻属{所属}{本卦}（爻位序{爻位序}）。
 本卦{本卦}的映射：{本卦摘要}
@@ -151,9 +180,15 @@ def _explain_yao_statement(
 
 爻辞：{text}
 
-要求：直接输出 2-5 句解释段落，说明本卦、对卦、爻位象如何结合以解释爻辞。不要输出「根据」「综上所述」等套话，直接写解释内容。"""
+要求：
+1. 采用分层结构，严格按以下格式输出（保留「核心」和「说明」两行标题）：
+核心：（用 1-2 句概括该爻的核心含义）
+说明：（展开说明本卦、对卦、爻位象如何结合以解释爻辞）
+2. 语言通俗易懂，避免文言和生僻用语
+3. 不要输出「根据」「综上所述」等套话"""
 
-    return _llm_explain_paragraph(prompt) or "（解释生成失败）"
+    raw = _llm_explain_paragraph(prompt) or "（解释生成失败）"
+    return _format_layered_explanation(raw)
 
 
 def _build_hexagram_summary(上卦: str, 下卦: str, 卦名: str, 别名: list, bagua: dict) -> str:
