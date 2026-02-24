@@ -62,7 +62,7 @@
 
 ---
 
-### 阶段 2：卦爻辞数据入库
+### 阶段 2：卦爻辞数据入库 ✅
 
 **目标**：将 64 卦辞、386 爻辞以结构化形式存储，支持动态录入与校验。每卦一单元，卦辞与爻辞同文件。
 
@@ -98,17 +98,19 @@
   ]
 }
 ```
-彖传、小象传、爻象推导、关联映射、承乘等允许 `null` 或空数组，支持逐步完善。
+彖传、小象传、爻象推导、关联映射、承乘等允许 `null` 或空数组，支持逐步完善。乾卦可含「用九」、坤卦可含「用六」作为第 7 条爻辞（爻位序为 0，当位为 null）。
 
 **落地步骤**：
 1. 创建 `data/hexagrams/` 目录，添加 `01_乾.json` 作为模板
 2. 实现 `scripts/add_hexagram.py`：交互式录入，按 schema 写入对应 JSON 文件
 3. 实现 `scripts/validate_hexagrams.py`：校验必填字段、卦序/爻位范围、上下卦与八卦映射一致性
+4. 实现 `ingest-hexagram`：基于 DeepSeek API，将大段文本智能转化为 JSON
 
 **产出**：
-- 64 卦 JSON 文件（每卦一文件）
-- 数据加载与索引接口（按卦序/卦名加载）
-- 录入脚本与校验脚本
+- [x] 64 卦 JSON 文件（每卦一文件，如 `01_乾.json` 模板已就绪）
+- [x] 数据加载与索引接口（`load_hexagram`、`load_all_hexagrams`、`list_hexagrams`）
+- [x] 录入脚本（`add-hexagram`）与校验脚本（`validate-hexagrams`）
+- [x] 智能录入（`ingest-hexagram`）：输入大段文本 → DeepSeek 解析 → 输出 JSON
 
 **目录**：`data/hexagrams/`、`scripts/`
 
@@ -173,9 +175,11 @@
 | 组件 | 备选 | 说明 |
 |------|------|------|
 | 嵌入模型 | sentence-transformers / 中文模型 | 阶段 3 语义相似度 |
-| LLM 调用 | LiteLLM / 直接 API | 阶段 3 解释生成 |
+| LLM 调用 | **DeepSeek API**（ingest-hexagram）/ LiteLLM | 卦爻辞文本转 JSON、阶段 3 解释生成 |
 | 存储 | **JSON 文件**（推荐） | 见下方存储选型说明 |
 | Agent 框架 | 待定 | 阶段 4 集成 |
+
+**ingest-hexagram**：使用 DeepSeek API，需设置 `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`（可选，默认 https://api.deepseek.com）。可复制 `.env.example` 为 `.env`。
 
 ### 存储选型说明：JSON vs SQLite
 

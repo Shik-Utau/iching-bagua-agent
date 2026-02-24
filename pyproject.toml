@@ -4,11 +4,17 @@ version = "0.1.0"
 description = "易经八卦映射智能体：基于语义关联的卦爻辞解释与检索"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
 
 [project.scripts]
 load-bagua = "iching_bagua.cli:load_main"
 validate-bagua = "iching_bagua.cli:validate_main"
+add-hexagram = "iching_bagua.cli:add_hexagram_main"
+ingest-hexagram = "iching_bagua.cli:ingest_hexagram_main"
+validate-hexagrams = "iching_bagua.cli:validate_hexagrams_main"
 
 [build-system]
 requires = ["hatchling"]
