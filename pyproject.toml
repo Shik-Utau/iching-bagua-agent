@@ -1,0 +1,7 @@
+[project]
+name = "iching-bagua-agent"
+version = "0.1.0"
+description = "易经八卦映射智能体：基于语义关联的卦爻辞解释与检索"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
