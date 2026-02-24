@@ -106,3 +106,31 @@ def ingest_hexagram_main() -> None:
     except Exception as e:
         print(f"错误: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def discover_associations_main() -> None:
+    """运行关联发现（基于重卦结构），输出 Markdown 解释文档到 data/associations/。"""
+    import argparse
+    parser = argparse.ArgumentParser(description="卦爻辞与八卦映射的关联发现（输出 Markdown 解释）")
+    parser.add_argument("--no-llm", action="store_true", help="不调用 LLM，仅输出结构框架（解释为空）")
+    parser.add_argument("-d", "--hexagrams-dir", type=Path, help="卦爻辞目录（默认 data/hexagrams）")
+    parser.add_argument("-o", "--output", type=Path, help="输出目录（默认 data/associations）")
+    parser.add_argument("-H", "--hexagram", type=int, action="append", dest="hexagrams", metavar="N",
+                        help="指定卦序，可多次使用（如 -H 1 -H 3）")
+    args = parser.parse_args()
+    try:
+        from association.discovery import discover_associations
+    except ImportError:
+        print("错误: 未安装 association 模块，请运行 uv sync。", file=sys.stderr)
+        sys.exit(1)
+    try:
+        saved = discover_associations(
+            use_llm=not args.no_llm,
+            hexagrams_dir=args.hexagrams_dir,
+            output_path=args.output,
+            hexagram_orders=args.hexagrams if args.hexagrams else None,
+        )
+        print(f"完成，共保存 {len(saved)} 个 Markdown 文件")
+    except Exception as e:
+        print(f"错误: {e}", file=sys.stderr)
+        sys.exit(1)
