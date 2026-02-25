@@ -5,7 +5,7 @@ from pathlib import Path
 
 from iching_bagua.add_hexagram import add_hexagram
 from iching_bagua.bagua_mappings import DEFAULT_MAPPINGS_PATH, load, validate
-from iching_bagua.hexagrams import HEXAGRAMS_DIR, validate_hexagrams
+from iching_bagua.hexagrams import HEXAGRAMS_DIR, check_hexagram_literature, validate_hexagrams
 from iching_bagua.ingest_hexagram import ingest_and_save, text_to_hexagram_json
 
 
@@ -53,6 +53,16 @@ def validate_hexagrams_main() -> None:
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         sys.exit(1)
+
+
+def check_hexagram_literature_main() -> None:
+    """检查卦爻辞 JSON 中缺失的彖传、大象传、小象传。"""
+    results = check_hexagram_literature()
+    for name, missing in results:
+        if not missing:
+            print(f"[{name}] ✓ 完整")
+        else:
+            print(f"[{name}] 缺失: {', '.join(missing)}")
 
 
 def ingest_hexagram_main() -> None:

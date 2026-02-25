@@ -105,6 +105,37 @@ def _llm_explain_paragraph(
         return ""
 
 
+def _llm_translate_文言(文言原文: str, 文献名: str, max_tokens: int = 300) -> str:
+    """调用 LLM 将彖传/象传文言译为白话。若原文为空或 LLM 不可用，返回空字符串。"""
+    if not 文言原文 or not str(文言原文).strip():
+        return ""
+    client = _get_openai_client()
+    if not client:
+        return ""
+    try:
+        prompt = f"""请将以下《周易》{文献名}的文言文翻译为通俗白话，只输出翻译结果，不要加引号或说明。
+
+{str(文言原文).strip()}
+"""
+        r = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=max_tokens,
+        )
+        return (r.choices[0].message.content or "").strip()
+    except Exception:
+        return ""
+
+
+def _or_暂无(val) -> str:
+    """若值为空（None、空字符串、仅空白），返回「暂无」。"""
+    if val is None:
+        return "暂无"
+    s = str(val).strip()
+    return s if s else "暂无"
+
+
 def _explain_hexagram_statement(
     上卦: str,
     下卦: str,
@@ -255,13 +286,27 @@ def discover_associations(
 
         # 卦辞
         卦辞 = data.get("卦辞", {})
-        卦辞原文 = 卦辞.get("原文", "")
-        卦辞白话 = 卦辞.get("白话", "")
-        卦辞解释 = ""
-        if 卦辞:
-            if use_llm:
-                print(f"  [{卦序}-gc] 卦辞...")
-            卦辞解释 = _explain_hexagram_statement(上卦, 下卦, 卦辞, bagua, use_llm)
+        卦辞原文 = _or_暂无(卦辞.get("原文"))
+        卦辞白话 = _or_暂无(卦辞.get("白话"))
+        彖传原文 = _or_暂无(卦辞.get("彖传"))
+        大象传原文 = _or_暂无(卦辞.get("大象传"))
+
+        if use_llm:
+            print(f"  [{卦序}-gc] 卦辞...")
+        卦辞解释 = _explain_hexagram_statement(上卦, 下卦, 卦辞, bagua, use_llm)
+
+        # 彖传、大象传白话：有原文时用 LLM 翻译
+        if 彖传原文 != "暂无" and use_llm:
+            print(f"  [{卦序}-gc] 彖传白话...")
+            彖传白话 = _llm_translate_文言(卦辞.get("彖传"), "彖传") or "暂无"
+        else:
+            彖传白话 = "暂无"
+
+        if 大象传原文 != "暂无" and use_llm:
+            print(f"  [{卦序}-gc] 大象传白话...")
+            大象传白话 = _llm_translate_文言(卦辞.get("大象传"), "大象传") or "暂无"
+        else:
+            大象传白话 = "暂无"
 
         # 爻辞
         爻辞块: list[str] = []
@@ -273,11 +318,25 @@ def discover_associations(
             if use_llm:
                 print(f"  [{卦序}-{爻位序}] {爻位}...")
             解释 = _explain_yao_statement(爻位序, 爻位, 上卦, 下卦, yao, bagua, use_llm)
-            原文 = yao.get("原文", "")
-            白话 = yao.get("白话", "")
-            爻辞块.append(f"### {爻位}：{原文}\n\n{白话}\n\n{解释}")
+            原文 = _or_暂无(yao.get("原文"))
+            白话 = _or_暂无(yao.get("白话"))
+            小象传原文 = _or_暂无(yao.get("小象传"))
+            if 小象传原文 != "暂无" and use_llm:
+                小象传白话 = _llm_translate_文言(yao.get("小象传"), "小象传") or "暂无"
+            else:
+                小象传白话 = "暂无" if 小象传原文 == "暂无" else "暂无"
 
-        # 构建 Markdown
+            爻辞块.append(
+                f"### {爻位}：{原文}\n\n"
+                f"**原文**：{原文}\n\n"
+                f"**白话**：{白话}\n\n"
+                f"**小象传**\n"
+                f"**原文**：{小象传原文}\n\n"
+                f"**白话**：{小象传白话}\n\n"
+                f"{解释}"
+            )
+
+        # 构建 Markdown（卦辞：经、彖传、大象传、说明）
         md_lines = [
             f"# {卦名}卦（{上卦}上{下卦}下）",
             "",
@@ -289,9 +348,25 @@ def discover_associations(
             "",
             "## 卦辞",
             "",
+            "### 经",
+            "",
             f"**原文**：{卦辞原文}",
             "",
             f"**白话**：{卦辞白话}",
+            "",
+            "### 彖传",
+            "",
+            f"**原文**：{彖传原文}",
+            "",
+            f"**白话**：{彖传白话}",
+            "",
+            "### 大象传",
+            "",
+            f"**原文**：{大象传原文}",
+            "",
+            f"**白话**：{大象传白话}",
+            "",
+            "### 说明",
             "",
             卦辞解释,
             "",

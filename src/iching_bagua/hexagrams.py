@@ -180,3 +180,49 @@ def validate_hexagrams(dir_path: Path | str | None = None) -> list[str]:
                             errors.append(f"{prefix} 爻辞[{i}] 爻位序应为 {i+1}")
 
     return errors
+
+
+def check_hexagram_literature(dir_path: Path | str | None = None) -> list[tuple[str, list[str]]]:
+    """检查卦爻辞 JSON 中缺失的彖传、大象传、小象传。
+
+    Returns:
+        [(文件名, [缺失项列表]), ...]，缺失项格式如 "卦辞.彖传"、"爻辞[2].小象传"
+    """
+    d = Path(dir_path) if dir_path else HEXAGRAMS_DIR
+    if not d.exists():
+        return []
+
+    result: list[tuple[str, list[str]]] = []
+    for p in sorted(d.glob("*.json")):
+        try:
+            with open(p, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            result.append((p.name, ["JSON 解析失败"]))
+            continue
+
+        missing: list[str] = []
+
+        # 卦辞：彖传、大象传
+        卦辞 = data.get("卦辞", {})
+        if not _has_content(卦辞.get("彖传")):
+            missing.append("卦辞.彖传")
+        if not _has_content(卦辞.get("大象传")):
+            missing.append("卦辞.大象传")
+
+        # 爻辞：小象传
+        for i, yao in enumerate(data.get("爻辞", [])):
+            if not _has_content(yao.get("小象传")):
+                missing.append(f"爻辞[{i}].小象传")
+
+        result.append((p.name, missing))
+
+    return result
+
+
+def _has_content(val) -> bool:
+    """判断值是否有实质内容（非 None、非空字符串、非仅空白）。"""
+    if val is None:
+        return False
+    s = str(val).strip()
+    return bool(s)

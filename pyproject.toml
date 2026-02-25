@@ -15,6 +15,7 @@ validate-bagua = "iching_bagua.cli:validate_main"
 add-hexagram = "iching_bagua.cli:add_hexagram_main"
 ingest-hexagram = "iching_bagua.cli:ingest_hexagram_main"
 validate-hexagrams = "iching_bagua.cli:validate_hexagrams_main"
+check-hexagram-literature = "iching_bagua.cli:check_hexagram_literature_main"
 discover-associations = "iching_bagua.cli:discover_associations_main"
 
 [build-system]

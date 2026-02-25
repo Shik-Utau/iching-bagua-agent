@@ -16,6 +16,7 @@ uv run validate-bagua
 
 # 卦爻辞
 uv run validate-hexagrams
+uv run check-hexagram-literature   # 检查彖传、象传等文献是否完整
 uv run add-hexagram        # 交互式录入
 uv run ingest-hexagram     # 智能录入：大段文本 → JSON
 ```

@@ -2,6 +2,7 @@
 
 from iching_bagua.bagua_mappings import load, validate
 from iching_bagua.hexagrams import (
+    check_hexagram_literature,
     load as load_hexagram,
     load_all as load_all_hexagrams,
     list_hexagrams,
@@ -15,4 +16,5 @@ __all__ = [
     "load_all_hexagrams",
     "list_hexagrams",
     "validate_hexagrams",
+    "check_hexagram_literature",
 ]
