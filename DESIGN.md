@@ -289,6 +289,36 @@
 
 ---
 
+### 阶段 3.5：卦象对比基础层（相似卦 / 系列对比）
+
+**目标**：为相似卦对比、卦系列对比提供基础能力。
+
+**阶段 A：错卦、综卦、同上下卦**
+
+| 任务 | 产出 |
+|------|------|
+| 卦序↔卦画↔六爻数组 | `order_to_yao_array`、`yao_array_to_order`、`order_to_symbol` |
+| 错卦、综卦计算 | `get_cuogua(卦序)`、`get_zonggua(卦序)` |
+| 同上下卦检索 | `get_same_trigram_hexagrams`、`get_hexagrams_with_trigram` |
+| 卦序相邻 | `get_adjacent_orders` |
+| CLI | `uv run hexagram-relations 卦序或卦名` |
+
+**目录**：`src/comparison/relations.py`
+
+**阶段 B：相似卦发现**
+
+| 任务 | 产出 |
+|------|------|
+| 整合相似卦检索 | `find_similar_hexagrams(卦序)` 返回错卦、综卦、同上下卦、卦序相邻、关键词相似 |
+| 关键词相似 | `get_keyword_similar(卦序, top_k=10)`，用卦辞.关键词 Jaccard 系数 |
+| 关键词扩展 | 二字子串扩展，便于「刚健而动」与「刚健」匹配 |
+
+**目录**：`src/comparison/similar.py`
+
+**Git**：`feat/phase-3-association-discovery`（与阶段 3 同分支）
+
+---
+
 ### 阶段 4：智能体接口
 
 **目标**：提供可被智能体调用的检索与解释接口。
