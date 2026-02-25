@@ -204,6 +204,149 @@ def hexagram_relations_main() -> None:
             print(f"  {_name(o)} ({o}) {order_to_symbol(o)} {score:.2f}")
 
 
+def compare_hexagrams_main() -> None:
+    """两卦对比：结构、卦辞、爻辞，输出 Markdown。"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="两卦对比：结构、卦辞、爻辞")
+    parser.add_argument("hexagram_a", help="卦 A：卦序(1-64) 或 卦名")
+    parser.add_argument("hexagram_b", help="卦 B：卦序(1-64) 或 卦名")
+    parser.add_argument("-o", "--output", type=Path, help="输出 Markdown 文件路径")
+    parser.add_argument("--no-llm", action="store_true", help="不调用 LLM 生成对比总结")
+    parser.add_argument("--stdout", action="store_true", help="仅输出到 stdout，不保存文件")
+    parser.add_argument("-d", "--hexagrams-dir", type=Path, help="卦爻辞目录")
+    args = parser.parse_args()
+
+    try:
+        from comparison.compare import (
+            _resolve_hexagram,
+            build_comparison_md,
+            compare_two_hexagrams,
+            COMPARISONS_DIR,
+        )
+    except ImportError as e:
+        print(f"错误: 未安装 comparison 模块 - {e}", file=sys.stderr)
+        sys.exit(1)
+
+    卦序A = _resolve_hexagram(args.hexagram_a, args.hexagrams_dir)
+    卦序B = _resolve_hexagram(args.hexagram_b, args.hexagrams_dir)
+    if 卦序A is None:
+        print(f"错误: 未找到卦「{args.hexagram_a}」", file=sys.stderr)
+        sys.exit(1)
+    if 卦序B is None:
+        print(f"错误: 未找到卦「{args.hexagram_b}」", file=sys.stderr)
+        sys.exit(1)
+
+    data = compare_two_hexagrams(卦序A, 卦序B, hexagrams_dir=args.hexagrams_dir)
+    if not data:
+        print("错误: 对比数据加载失败", file=sys.stderr)
+        sys.exit(1)
+
+    md = build_comparison_md(
+        卦序A, 卦序B, data=data,
+        hexagrams_dir=args.hexagrams_dir,
+        use_llm_summary=not args.no_llm,
+    )
+
+    if args.stdout:
+        print(md)
+    else:
+        out_path = args.output
+        if not out_path:
+            from iching_bagua.hexagrams import list_hexagrams
+            名A = next((n for o, n, _ in list_hexagrams() if o == 卦序A), str(卦序A))
+            名B = next((n for o, n, _ in list_hexagrams() if o == 卦序B), str(卦序B))
+            COMPARISONS_DIR.mkdir(parents=True, exist_ok=True)
+            out_path = COMPARISONS_DIR / f"{卦序A:02d}_{名A}_vs_{卦序B:02d}_{名B}.md"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(md, encoding="utf-8")
+        print(f"已保存: {out_path}")
+
+
+def series_compare_main() -> None:
+    """卦系列对比：固定预设或用户指定，逐爻位对比，输出 Markdown。"""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="卦系列对比：固定预设或用户指定")
+    parser.add_argument(
+        "series",
+        nargs="?",
+        default="",
+        help="预设名称（上经前六卦、含坎、屯蒙需讼师比等）或卦名/卦序列表，逗号分隔",
+    )
+    parser.add_argument("-o", "--output", type=Path, help="输出 Markdown 文件路径")
+    parser.add_argument("--no-llm", action="store_true", help="不调用 LLM 生成系列总结")
+    parser.add_argument("--stdout", action="store_true", help="仅输出到 stdout")
+    parser.add_argument("-d", "--hexagrams-dir", type=Path, help="卦爻辞目录")
+    parser.add_argument("-l", "--list-presets", action="store_true", help="列出可用预设")
+    args = parser.parse_args()
+
+    try:
+        from comparison.series import (
+            PRESET_SERIES,
+            build_series_comparison_md,
+            compare_series,
+            get_series_orders,
+            COMPARISONS_DIR,
+        )
+    except ImportError as e:
+        print(f"错误: 未安装 comparison 模块 - {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.list_presets:
+        from comparison.series import _init_trigram_presets
+        _init_trigram_presets()
+        print("可用预设：")
+        for name, orders in PRESET_SERIES.items():
+            count = len(orders)
+            print(f"  {name}: {count} 卦")
+        return
+
+    if not args.series:
+        print("错误: 请指定预设名称或卦系列（逗号分隔）", file=sys.stderr)
+        sys.exit(1)
+
+    # 解析 series：预设名 或 逗号分隔的卦名/卦序
+    if "," in args.series:
+        parts = [x.strip() for x in args.series.split(",") if x.strip()]
+        卦序列表 = get_series_orders(parts, hexagrams_dir=args.hexagrams_dir)
+        series_name = args.series[:50] + ("…" if len(args.series) > 50 else "")
+    else:
+        卦序列表 = get_series_orders(args.series, hexagrams_dir=args.hexagrams_dir)
+        series_name = args.series
+
+    if not 卦序列表:
+        print(f"错误: 未解析到有效卦系列「{args.series}」", file=sys.stderr)
+        sys.exit(1)
+
+    data = compare_series(卦序列表, hexagrams_dir=args.hexagrams_dir)
+    if not data:
+        print("错误: 系列对比数据加载失败", file=sys.stderr)
+        sys.exit(1)
+
+    md = build_series_comparison_md(
+        卦序列表,
+        data=data,
+        series_name=series_name,
+        hexagrams_dir=args.hexagrams_dir,
+        use_llm_summary=not args.no_llm,
+    )
+
+    if args.stdout:
+        print(md)
+    else:
+        out_path = args.output
+        if not out_path:
+            卦名串 = "_".join(g["卦名"] for g in data.get("卦列表", [])[:5])
+            if len(data.get("卦列表", [])) > 5:
+                卦名串 += "等"
+            COMPARISONS_DIR.mkdir(parents=True, exist_ok=True)
+            out_path = COMPARISONS_DIR / f"series_{卦名串}.md"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(md, encoding="utf-8")
+        print(f"已保存: {out_path}")
+
+
 def discover_associations_main() -> None:
     """运行关联发现（基于重卦结构），输出 Markdown 解释文档到 data/associations/。"""
     import argparse
@@ -230,3 +373,19 @@ def discover_associations_main() -> None:
     except Exception as e:
         print(f"错误: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def merge_association_main() -> None:
+    """融合卦爻关联：保留原文件的原文与翻译，删除原说明，替换为 new 的说明。支持任意卦。"""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="融合卦爻关联：用 new 的说明替换卦 md 的说明，支持任意卦（如 03_屯.md、04_蒙.md）"
+    )
+    parser.add_argument("original", type=Path, help="卦的 md 文件路径（如 03_屯.md、04_蒙.md）")
+    parser.add_argument("new_explanations", type=Path, help="新说明文件（含核心主题、问答、总结）")
+    parser.add_argument("-o", "--output", type=Path, help="输出路径，默认覆盖原文件")
+    args = parser.parse_args()
+    from association.merge import merge
+    out = args.output or args.original
+    merge(args.original, args.new_explanations, out)
+    print(f"已写入: {out}")

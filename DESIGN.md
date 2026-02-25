@@ -315,6 +315,42 @@
 
 **目录**：`src/comparison/similar.py`
 
+**阶段 C：两卦对比**
+
+| 任务 | 产出 |
+|------|------|
+| 结构对比 | 上下卦、错卦关系、综卦关系 |
+| 卦辞并排 | 原文、白话、彖传、大象传、吉凶 |
+| 爻辞逐爻对比 | 同爻位原文、白话、当位、吉凶 |
+| LLM 总结 | 自然语言对比要点（可选） |
+| CLI | `uv run compare-hexagrams 卦A 卦B` |
+
+**目录**：`src/comparison/compare.py`、`data/comparisons/`
+
+**阶段 D：卦系列对比**
+
+| 任务 | 产出 |
+|------|------|
+| 固定系列 | 上经前六卦、屯蒙需讼师比、含坎、含离等预设 |
+| 用户指定系列 | 逗号分隔的卦名/卦序列表 |
+| 逐爻位对比表 | 同一爻位在不同卦中的原文、白话、吉凶 |
+| LLM 系列脉络 | 演变、共性、差异总结（可选） |
+| CLI | `uv run series-compare 预设或卦列表` |
+
+**预设**：`--list-presets` 列出可用预设
+
+**目录**：`src/comparison/series.py`
+
+**阶段 E：接口与集成**
+
+| 任务 | 产出 |
+|------|------|
+| CLI | `hexagram-relations`、`similar-hexagrams`（别名）、`compare-hexagrams`、`series-compare` |
+| Python API | `find_similar` / `find_similar_hexagrams`、`compare_two` / `compare_two_hexagrams`、`compare_series` |
+| Agent 工具 | `tool_find_similar`、`tool_compare_two`、`tool_compare_series`、`get_tool_definitions` |
+
+**Agent 工具**：`src/agent/tools.py`，返回结构化 dict，支持 OpenAI function calling 的 `get_tool_definitions()`。
+
 **Git**：`feat/phase-3-association-discovery`（与阶段 3 同分支）
 
 ---
